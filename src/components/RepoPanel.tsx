@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { Account } from '../store';
 import { getRepos, getWorkflows, toggleWorkflow, getWorkflowRuns } from '../github';
-import { CheckCircle2, XCircle, Clock, Power } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Power, ChevronRight, FolderGit2 } from 'lucide-react';
 
 interface Props {
   account: Account;
@@ -49,56 +49,57 @@ export function RepoPanel({ account, billingData }: Props) {
     }, { hosted: 0, self: 0 });
   };
 
-  if (loading) return <div className="text-center py-10">Loading Repositories...</div>;
+  if (loading) return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 font-mono text-sm animate-pulse">
+      SYNCING REPOSITORIES...
+    </div>
+  );
 
   return (
-    <div className="bg-white rounded shadow overflow-hidden">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-gray-50 border-b">
-            <th className="p-3 text-sm font-semibold text-gray-600">Repository</th>
-            <th className="p-3 text-sm font-semibold text-gray-600">Visibility</th>
-            <th className="p-3 text-sm font-semibold text-gray-600">Usage</th>
-            <th className="p-3 text-sm font-semibold text-gray-600">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {repos.map(repo => {
-            const minutes = getRepoMinutes(repo.full_name);
-            return (
-              <React.Fragment key={repo.id}>
-                <tr 
-                  className="border-b hover:bg-gray-50 cursor-pointer"
-                  onClick={() => setExpandedRepo(expandedRepo === repo.name ? null : repo.name)}
-                >
-                  <td className="p-3 font-medium text-blue-600">{repo.name}</td>
-                  <td className="p-3">
-                    <span className={`text-xs px-2 py-1 rounded font-semibold ${repo.private ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>
-                      {repo.private ? 'Private' : 'Public (Free)'}
+    <div className="space-y-4">
+      {repos.map(repo => {
+        const minutes = getRepoMinutes(repo.full_name);
+        const isExpanded = expandedRepo === repo.name;
+        
+        return (
+          <div key={repo.id} className={`bg-slate-900 border transition-all duration-200 rounded-2xl overflow-hidden ${isExpanded ? 'border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.1)]' : 'border-slate-800 hover:border-slate-700'}`}>
+            <div 
+              className="p-4 sm:p-5 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              onClick={() => setExpandedRepo(isExpanded ? null : repo.name)}
+            >
+              <div className="flex items-start sm:items-center gap-4">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 shrink-0">
+                  <FolderGit2 className="w-5 h-5 text-slate-400" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-white text-base leading-none">{repo.name}</h4>
+                  <div className="flex items-center mt-2 gap-2">
+                    <span className={`text-[10px] px-2 py-0.5 rounded uppercase tracking-widest font-mono border ${repo.private ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'}`}>
+                      {repo.private ? 'Private' : 'Public'}
                     </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-col text-sm text-gray-600">
-                      <span>{minutes.hosted > 0 ? `${minutes.hosted} mins hosted` : repo.private ? '0 mins' : '-'}</span>
-                      {minutes.self > 0 && <span className="text-xs text-green-600">{minutes.self} mins self-hosted</span>}
-                    </div>
-                  </td>
-                  <td className="p-3 text-sm text-gray-500">
-                    {expandedRepo === repo.name ? 'Hide Details' : 'View Workflows'}
-                  </td>
-                </tr>
-                {expandedRepo === repo.name && (
-                  <tr>
-                    <td colSpan={4} className="p-0 border-b">
-                      <RepoDetails owner={account.login} repo={repo.name} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0 mt-2 sm:mt-0">
+                <div className="flex flex-col text-right font-mono mr-4">
+                  <span className="text-sm text-white">{minutes.hosted > 0 ? `${minutes.hosted.toLocaleString()}m` : repo.private ? '0m' : 'Free'}</span>
+                  {minutes.self > 0 && <span className="text-[10px] text-emerald-400 tracking-wider">+{minutes.self.toLocaleString()}m SELF</span>}
+                </div>
+                <div className={`p-1.5 rounded-full bg-slate-800 text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-90 bg-cyan-500/20 text-cyan-400' : ''}`}>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+            
+            {isExpanded && (
+              <div className="border-t border-slate-800 bg-slate-950/50">
+                <RepoDetails owner={account.login} repo={repo.name} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -123,31 +124,30 @@ function RepoDetails({ owner, repo }: { owner: string, repo: string }) {
     const isEnabling = wf.state !== 'active';
     try {
       await toggleWorkflow(owner, repo, wf.id, isEnabling);
-      // Optimistic update
       setWorkflows(workflows.map(w => w.id === wf.id ? { ...w, state: isEnabling ? 'active' : 'disabled_manually' } : w));
     } catch (e) {
       alert('Failed to toggle workflow');
     }
   };
 
-  if (loading) return <div className="p-4 bg-gray-50 text-sm text-center">Loading details...</div>;
+  if (loading) return <div className="p-8 text-center text-xs text-slate-500 font-mono tracking-widest animate-pulse">FETCHING PIPELINES...</div>;
 
   return (
-    <div className="p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Workflows List & Toggle */}
+    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Workflows List */}
       <div>
-        <h4 className="font-bold mb-2 text-sm">Workflows</h4>
-        {workflows.length === 0 ? <p className="text-xs text-gray-500">No workflows found.</p> : (
+        <h4 className="text-xs font-bold text-slate-500 tracking-widest uppercase mb-3">Pipelines</h4>
+        {workflows.length === 0 ? <p className="text-xs text-slate-600 font-mono">No pipelines configured.</p> : (
           <ul className="space-y-2">
             {workflows.map(wf => (
-              <li key={wf.id} className="flex justify-between items-center bg-white p-2 border rounded text-sm">
-                <span className={wf.state !== 'active' ? 'text-gray-400' : ''}>{wf.name}</span>
+              <li key={wf.id} className="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl text-sm">
+                <span className={`font-medium ${wf.state !== 'active' ? 'text-slate-500 line-through decoration-slate-700' : 'text-slate-200'}`}>{wf.name}</span>
                 <button 
                   onClick={() => handleToggle(wf)}
-                  className={`flex items-center px-2 py-1 rounded text-xs text-white ${wf.state === 'active' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
+                  className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${wf.state === 'active' ? 'bg-slate-800 text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 border border-transparent' : 'bg-cyan-500 text-slate-950 hover:bg-cyan-400'}`}
                 >
-                  <Power className="w-3 h-3 mr-1"/>
-                  {wf.state === 'active' ? 'Disable' : 'Enable'}
+                  <Power className="w-3 h-3 mr-1.5"/>
+                  {wf.state === 'active' ? 'HALT' : 'ACTIVATE'}
                 </button>
               </li>
             ))}
@@ -157,18 +157,20 @@ function RepoDetails({ owner, repo }: { owner: string, repo: string }) {
 
       {/* Recent Runs */}
       <div>
-        <h4 className="font-bold mb-2 text-sm">Recent Runs</h4>
-        {runs.length === 0 ? <p className="text-xs text-gray-500">No runs found.</p> : (
+        <h4 className="text-xs font-bold text-slate-500 tracking-widest uppercase mb-3">Recent Execution Logs</h4>
+        {runs.length === 0 ? <p className="text-xs text-slate-600 font-mono">No execution logs found.</p> : (
           <ul className="space-y-2">
             {runs.slice(0, 5).map(run => (
-              <li key={run.id} className="flex justify-between items-center bg-white p-2 border rounded text-sm">
-                <div className="flex items-center truncate pr-2">
-                  {run.conclusion === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" /> : 
-                   run.conclusion === 'failure' ? <XCircle className="w-4 h-4 text-red-500 mr-2 flex-shrink-0" /> : 
-                   <Clock className="w-4 h-4 text-yellow-500 mr-2 flex-shrink-0" />}
-                  <span className="truncate">{run.name || run.display_title}</span>
+              <li key={run.id} className="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl text-sm">
+                <div className="flex items-center truncate pr-3">
+                  {run.conclusion === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mr-2.5 shrink-0 drop-shadow-[0_0_2px_rgba(52,211,153,0.5)]" /> : 
+                   run.conclusion === 'failure' ? <XCircle className="w-4 h-4 text-rose-500 mr-2.5 shrink-0 drop-shadow-[0_0_2px_rgba(244,63,94,0.5)]" /> : 
+                   <Clock className="w-4 h-4 text-amber-400 mr-2.5 shrink-0 animate-pulse" />}
+                  <span className="truncate text-slate-300">{run.name || run.display_title}</span>
                 </div>
-                <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(run.created_at).toLocaleDateString()}</span>
+                <span className="text-[10px] text-slate-500 font-mono tracking-wider shrink-0 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                  {new Date(run.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
               </li>
             ))}
           </ul>

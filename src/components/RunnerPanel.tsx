@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Account } from '../store';
 import { getRunners } from '../github';
-import { Server, Tag } from 'lucide-react';
+import { Server, Tag, Activity } from 'lucide-react';
 
 interface Props {
   account: Account;
@@ -16,7 +16,7 @@ export function RunnerPanel({ account }: Props) {
     if (account.type === 'org') {
       loadRunners();
     } else {
-      setRunners([]); // User account runners not explicitly supported at top level
+      setRunners([]);
     }
   }, [account]);
 
@@ -37,53 +37,54 @@ export function RunnerPanel({ account }: Props) {
     }
   };
 
-  if (account.type === 'user') return <div className="p-4 bg-gray-50 rounded text-sm text-gray-500 text-center">Self-hosted runner list is available for Organizations.</div>;
-  if (loading) return <div className="text-center py-6 text-sm">Loading Runners...</div>;
+  if (account.type === 'user') return (
+    <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-mono text-slate-500 flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+      <Server className="w-8 h-8 text-slate-700 mb-3" />
+      SELF-HOSTED RUNNER TELEMETRY<br/>AVAILABLE FOR ORGANIZATIONS ONLY
+    </div>
+  );
+
+  if (loading) return (
+    <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center min-h-[200px]">
+      <Activity className="w-6 h-6 text-cyan-500 animate-pulse" />
+    </div>
+  );
   if (error) return null;
 
   return (
-    <div className="bg-white rounded shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold flex items-center">
-          <Server className="w-5 h-5 mr-2" /> Self-Hosted Runners
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-lg font-medium text-white flex items-center">
+          <Server className="w-5 h-5 mr-2 text-cyan-400" /> Self-Hosted Nodes
         </h2>
-        <span className="text-xs font-semibold px-2 py-1 bg-green-100 text-green-800 rounded">Free Minutes</span>
       </div>
 
       {runners.length === 0 ? (
-        <p className="text-sm text-gray-500">No self-hosted runners configured for this organization.</p>
+        <p className="text-sm text-slate-500 font-mono tracking-wide">NO NODES DETECTED</p>
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b text-gray-600">
-              <th className="pb-2">Name</th>
-              <th className="pb-2">OS</th>
-              <th className="pb-2">Status</th>
-              <th className="pb-2">Labels</th>
-            </tr>
-          </thead>
-          <tbody>
-            {runners.map(r => (
-              <tr key={r.id} className="border-b last:border-0">
-                <td className="py-3 font-medium">{r.name}</td>
-                <td className="py-3 text-gray-600">{r.os}</td>
-                <td className="py-3">
-                  <div className="flex items-center">
-                    <span className={`w-2 h-2 rounded-full mr-2 ${r.status === 'online' ? (r.busy ? 'bg-yellow-400' : 'bg-green-500') : 'bg-red-500'}`}></span>
-                    {r.status === 'online' ? (r.busy ? 'Busy' : 'Idle') : 'Offline'}
-                  </div>
-                </td>
-                <td className="py-3 flex gap-1 flex-wrap">
-                  {r.labels.map((l: any) => (
-                    <span key={l.id} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded border flex items-center">
-                      <Tag className="w-3 h-3 mr-1" /> {l.name}
-                    </span>
-                  ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-3">
+          {runners.map(r => (
+            <div key={r.id} className="bg-slate-950/50 border border-slate-800/80 rounded-xl p-4 hover:border-slate-700 transition-colors">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h4 className="font-mono text-sm text-white font-medium">{r.name}</h4>
+                  <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest">{r.os}</p>
+                </div>
+                <div className="flex items-center bg-slate-900 border border-slate-800 px-2 py-1 rounded text-xs font-mono">
+                  <span className={`w-1.5 h-1.5 rounded-full mr-2 ${r.status === 'online' ? (r.busy ? 'bg-amber-400 shadow-[0_0_5px_#fbbf24]' : 'bg-emerald-400 shadow-[0_0_5px_#34d399]') : 'bg-rose-500 shadow-[0_0_5px_#f43f5e]'}`}></span>
+                  <span className="text-slate-300">{r.status === 'online' ? (r.busy ? 'BUSY' : 'IDLE') : 'OFFLINE'}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap mt-3">
+                {r.labels.map((l: any) => (
+                  <span key={l.id} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 flex items-center uppercase tracking-wider font-mono">
+                    <Tag className="w-2.5 h-2.5 mr-1 text-cyan-500/70" /> {l.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

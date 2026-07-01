@@ -5,7 +5,7 @@ import { RepoPanel } from './components/RepoPanel';
 import { RunnerPanel } from './components/RunnerPanel';
 import type { Account } from './store';
 import { getBilling } from './github';
-import { GitBranch } from 'lucide-react';
+import { GitBranch, Activity } from 'lucide-react';
 
 export default function App() {
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
@@ -27,54 +27,67 @@ export default function App() {
     try {
       const res = await getBilling(activeAccount!.login, activeAccount!.type);
       if (res.message && res.message.includes('moved')) {
-        setBillingError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
+        setBillingError('API retired by GitHub. Enterprise Only.');
         return;
       }
       setBillingData(res);
     } catch (err: any) {
-      if (err.status === 404 || (err.message && err.message.includes('moved'))) {
-        setBillingError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
-      } else {
-        setBillingError(err.message || 'Failed to load billing data');
-      }
+      setBillingError('API retired by GitHub. Enterprise Only.');
     } finally {
       setBillingLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <GitBranch className="w-6 h-6 text-gray-900" />
-            <h1 className="text-xl font-bold tracking-tight">GitDash</h1>
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30">
+      {/* Sleek top navigation */}
+      <header className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3 group cursor-default">
+            <div className="p-2 bg-slate-900 rounded-xl border border-slate-800 group-hover:border-cyan-500/50 transition-colors">
+              <Activity className="w-5 h-5 text-cyan-400" />
+            </div>
+            <h1 className="text-xl font-medium tracking-tight text-white">
+              GitDash<span className="text-cyan-500">.</span>
+            </h1>
           </div>
           <AccountManager onAccountSelect={setActiveAccount} />
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {!activeAccount ? (
-          <div className="text-center py-20">
-            <GitBranch className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-600">Welcome to GitDash</h2>
-            <p className="text-gray-500 mt-2">Please add a GitHub account to get started.</p>
+          <div className="flex flex-col items-center justify-center py-32 px-4 text-center">
+            <div className="w-24 h-24 mb-8 relative">
+              <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-2xl animate-pulse"></div>
+              <div className="relative bg-slate-900 border border-slate-800 p-6 rounded-3xl flex items-center justify-center">
+                <GitBranch className="w-12 h-12 text-cyan-400" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-light text-white tracking-tight">Telemetry Awaiting Signal</h2>
+            <p className="text-slate-500 mt-4 max-w-md text-sm leading-relaxed">
+              Connect a GitHub account with a Classic PAT to begin monitoring your Actions pipelines, runners, and billing consumption.
+            </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8 animate-in fade-in duration-700 ease-out">
             <BillingOverview 
-              account={activeAccount} 
               data={billingData} 
               loading={billingLoading} 
               error={billingError} 
             />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <h3 className="text-lg font-bold">Repositories & Workflows</h3>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="xl:col-span-2 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold tracking-widest uppercase text-slate-500">Repositories & Workflows</h3>
+                </div>
                 <RepoPanel account={activeAccount} billingData={billingData} />
               </div>
-              <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold tracking-widest uppercase text-slate-500">Infrastructure</h3>
+                </div>
                 <RunnerPanel account={activeAccount} />
               </div>
             </div>
