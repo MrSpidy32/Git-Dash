@@ -16,8 +16,8 @@ export const getClient = () => {
 export const getBilling = async (login: string, type: 'user' | 'org') => {
   const client = getClient();
   const endpoint = type === 'org' 
-    ? `/organizations/${login}/settings/billing/usage/summary` 
-    : `/users/${login}/settings/billing/usage/summary`;
+    ? `/organizations/${login}/settings/billing/usage` 
+    : `/users/${login}/settings/billing/usage`;
   
   const { data } = await client.request(`GET ${endpoint}`, {
     headers: {
