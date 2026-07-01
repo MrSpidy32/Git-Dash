@@ -22,10 +22,17 @@ export function BillingOverview({ account }: Props) {
     setError('');
     try {
       const res = await getBilling(account.login, account.type);
+      
+      // GitHub's new billing API returns a redirect/moved payload instead of actual 404/403 for old endpoints
+      if (res.message && res.message.includes('moved')) {
+        setError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
+        return;
+      }
+      
       setData(res);
     } catch (err: any) {
-      if (err.status === 404) {
-        setError('Billing data not available for this account. Ensure admin access.');
+      if (err.status === 404 || (err.message && err.message.includes('moved'))) {
+        setError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
       } else {
         setError(err.message || 'Failed to load billing data');
       }
