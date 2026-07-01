@@ -16,10 +16,14 @@ export const getClient = () => {
 export const getBilling = async (login: string, type: 'user' | 'org') => {
   const client = getClient();
   const endpoint = type === 'org' 
-    ? `/orgs/${login}/settings/billing/actions` 
-    : `/users/${login}/settings/billing/actions`;
+    ? `/organizations/${login}/settings/billing/usage/summary` 
+    : `/users/${login}/settings/billing/usage/summary`;
   
-  const { data } = await client.request(`GET ${endpoint}`);
+  const { data } = await client.request(`GET ${endpoint}`, {
+    headers: {
+      'X-GitHub-Api-Version': '2026-03-10'
+    }
+  });
   return data;
 };
 

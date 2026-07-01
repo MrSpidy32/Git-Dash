@@ -45,7 +45,31 @@ export function BillingOverview({ account }: Props) {
   if (error) return <div className="p-4 bg-red-50 text-red-600 rounded border border-red-200">{error}</div>;
   if (!data) return null;
 
-  const { total_minutes_used, included_minutes, minutes_used_breakdown, total_paid_minutes_used } = data;
+  // New Enhanced Billing API format handling
+  let total_minutes_used = 0;
+  let total_paid_minutes_used = 0;
+  const minutes_used_breakdown = { UBUNTU: 0, WINDOWS: 0, MACOS: 0 };
+
+  if (data.usageItems) {
+    data.usageItems.forEach((item: any) => {
+      if (item.product === 'Actions' || item.sku.includes('actions')) {
+        const qty = item.netQuantity || item.grossQuantity || 0;
+        total_minutes_used += qty;
+        
+        if (item.netAmount > 0) {
+          total_paid_minutes_used += qty;
+        }
+
+        const sku = item.sku.toLowerCase();
+        if (sku.includes('linux')) minutes_used_breakdown.UBUNTU += qty;
+        else if (sku.includes('windows')) minutes_used_breakdown.WINDOWS += qty;
+        else if (sku.includes('macos') || sku.includes('mac')) minutes_used_breakdown.MACOS += qty;
+      }
+    });
+  }
+
+  // Since new API doesn't return plan limits, we default to 2000 (Free Tier)
+  const included_minutes = 2000;
   const pct = Math.min((total_minutes_used / included_minutes) * 100, 100);
   
   const pieData = [
