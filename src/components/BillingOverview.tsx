@@ -1,46 +1,15 @@
-import { useState, useEffect } from 'react';
 import type { Account } from '../store';
-import { getBilling } from '../github';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface Props {
-  account: Account;
+  account?: Account;
+  data: any;
+  loading: boolean;
+  error: string;
 }
 
-export function BillingOverview({ account }: Props) {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    loadBilling();
-  }, [account]);
-
-  const loadBilling = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await getBilling(account.login, account.type);
-      
-      // GitHub's new billing API returns a redirect/moved payload instead of actual 404/403 for old endpoints
-      if (res.message && res.message.includes('moved')) {
-        setError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
-        return;
-      }
-      
-      setData(res);
-    } catch (err: any) {
-      if (err.status === 404 || (err.message && err.message.includes('moved'))) {
-        setError('GitHub has officially retired the Personal/Org Billing API and moved it to Enterprise only. This data is no longer accessible.');
-      } else {
-        setError(err.message || 'Failed to load billing data');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export function BillingOverview({ data, loading, error }: Props) {
   if (loading) return <div className="p-4 bg-white rounded shadow animate-pulse h-48"></div>;
   if (error) return <div className="p-4 bg-red-50 text-red-600 rounded border border-red-200">{error}</div>;
   if (!data) return null;
@@ -48,22 +17,30 @@ export function BillingOverview({ account }: Props) {
   // New Enhanced Billing API format handling
   let total_minutes_used = 0;
   let total_paid_minutes_used = 0;
+  let self_hosted_minutes = 0;
   const minutes_used_breakdown = { UBUNTU: 0, WINDOWS: 0, MACOS: 0 };
 
   if (data.usageItems) {
     data.usageItems.forEach((item: any) => {
-      if (item.product === 'Actions' || item.sku.includes('actions')) {
-        const qty = item.netQuantity || item.grossQuantity || 0;
-        total_minutes_used += qty;
-        
-        if (item.netAmount > 0) {
-          total_paid_minutes_used += qty;
-        }
-
+      const isActions = item.product === 'Actions' || (item.sku && item.sku.toLowerCase().includes('actions'));
+      const qty = item.netQuantity || item.grossQuantity || 0;
+      
+      if (isActions) {
         const sku = item.sku.toLowerCase();
-        if (sku.includes('linux')) minutes_used_breakdown.UBUNTU += qty;
-        else if (sku.includes('windows')) minutes_used_breakdown.WINDOWS += qty;
-        else if (sku.includes('macos') || sku.includes('mac')) minutes_used_breakdown.MACOS += qty;
+        
+        // Track self-hosted separately
+        if (sku.includes('self-hosted') || sku.includes('self_hosted') || sku.includes('self hosted')) {
+          self_hosted_minutes += qty;
+        } else {
+          total_minutes_used += qty;
+          if (item.netAmount > 0) {
+            total_paid_minutes_used += qty;
+          }
+
+          if (sku.includes('linux') || sku.includes('ubuntu')) minutes_used_breakdown.UBUNTU += qty;
+          else if (sku.includes('windows')) minutes_used_breakdown.WINDOWS += qty;
+          else if (sku.includes('macos') || sku.includes('mac')) minutes_used_breakdown.MACOS += qty;
+        }
       }
     });
   }
@@ -93,7 +70,7 @@ export function BillingOverview({ account }: Props) {
         {/* Progress */}
         <div className="col-span-2">
           <div className="flex justify-between text-sm mb-2">
-            <span><strong>{total_minutes_used.toLocaleString()}</strong> mins used</span>
+            <span><strong>{total_minutes_used.toLocaleString()}</strong> GitHub-Hosted mins</span>
             <span className="text-gray-500">{included_minutes.toLocaleString()} mins included</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden flex">
@@ -102,15 +79,18 @@ export function BillingOverview({ account }: Props) {
               style={{ width: `${pct}%` }}
             ></div>
           </div>
-          <div className="mt-4 flex space-x-4 text-sm">
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <div className="flex items-center text-gray-600 font-semibold bg-gray-100 px-2 py-1 rounded">
+              {self_hosted_minutes.toLocaleString()} Self-Hosted mins (Free)
+            </div>
             <div className="flex items-center text-gray-600">
               <CheckCircle className="w-4 h-4 mr-1 text-green-500"/>
               {(included_minutes - total_minutes_used).toLocaleString()} remaining
             </div>
             {total_paid_minutes_used > 0 && (
-              <div className="flex items-center text-red-600 font-semibold">
+              <div className="flex items-center text-red-600 font-semibold bg-red-50 px-2 py-1 rounded border border-red-100">
                 <AlertTriangle className="w-4 h-4 mr-1"/>
-                {total_paid_minutes_used.toLocaleString()} paid overage mins
+                {total_paid_minutes_used.toLocaleString()} Paid overage mins
               </div>
             )}
           </div>

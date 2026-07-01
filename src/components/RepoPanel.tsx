@@ -5,9 +5,10 @@ import { CheckCircle2, XCircle, Clock, Power } from 'lucide-react';
 
 interface Props {
   account: Account;
+  billingData?: any;
 }
 
-export function RepoPanel({ account }: Props) {
+export function RepoPanel({ account, billingData }: Props) {
   const [repos, setRepos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRepo, setExpandedRepo] = useState<string | null>(null);
@@ -28,6 +29,26 @@ export function RepoPanel({ account }: Props) {
     }
   };
 
+  const getRepoMinutes = (repoFullName: string) => {
+    if (!billingData || !billingData.usageItems) return { hosted: 0, self: 0 };
+    
+    return billingData.usageItems.reduce((acc: any, item: any) => {
+      if ((item.product === 'Actions' || (item.sku && item.sku.toLowerCase().includes('actions'))) && 
+          item.repositoryName && 
+          item.repositoryName.toLowerCase() === repoFullName.toLowerCase()) {
+        const qty = item.netQuantity || item.grossQuantity || 0;
+        const sku = item.sku.toLowerCase();
+        
+        if (sku.includes('self-hosted') || sku.includes('self_hosted') || sku.includes('self hosted')) {
+          acc.self += qty;
+        } else {
+          acc.hosted += qty;
+        }
+      }
+      return acc;
+    }, { hosted: 0, self: 0 });
+  };
+
   if (loading) return <div className="text-center py-10">Loading Repositories...</div>;
 
   return (
@@ -37,35 +58,45 @@ export function RepoPanel({ account }: Props) {
           <tr className="bg-gray-50 border-b">
             <th className="p-3 text-sm font-semibold text-gray-600">Repository</th>
             <th className="p-3 text-sm font-semibold text-gray-600">Visibility</th>
+            <th className="p-3 text-sm font-semibold text-gray-600">Usage</th>
             <th className="p-3 text-sm font-semibold text-gray-600">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {repos.map(repo => (
-            <React.Fragment key={repo.id}>
-              <tr 
-                className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => setExpandedRepo(expandedRepo === repo.name ? null : repo.name)}
-              >
-                <td className="p-3 font-medium text-blue-600">{repo.name}</td>
-                <td className="p-3">
-                  <span className={`text-xs px-2 py-1 rounded font-semibold ${repo.private ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>
-                    {repo.private ? 'Private' : 'Public (Free)'}
-                  </span>
-                </td>
-                <td className="p-3 text-sm text-gray-500">
-                  {expandedRepo === repo.name ? 'Hide Details' : 'View Workflows'}
-                </td>
-              </tr>
-              {expandedRepo === repo.name && (
-                <tr>
-                  <td colSpan={3} className="p-0 border-b">
-                    <RepoDetails owner={account.login} repo={repo.name} />
+          {repos.map(repo => {
+            const minutes = getRepoMinutes(repo.full_name);
+            return (
+              <React.Fragment key={repo.id}>
+                <tr 
+                  className="border-b hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setExpandedRepo(expandedRepo === repo.name ? null : repo.name)}
+                >
+                  <td className="p-3 font-medium text-blue-600">{repo.name}</td>
+                  <td className="p-3">
+                    <span className={`text-xs px-2 py-1 rounded font-semibold ${repo.private ? 'bg-gray-200 text-gray-800' : 'bg-green-100 text-green-800'}`}>
+                      {repo.private ? 'Private' : 'Public (Free)'}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col text-sm text-gray-600">
+                      <span>{minutes.hosted > 0 ? `${minutes.hosted} mins hosted` : repo.private ? '0 mins' : '-'}</span>
+                      {minutes.self > 0 && <span className="text-xs text-green-600">{minutes.self} mins self-hosted</span>}
+                    </div>
+                  </td>
+                  <td className="p-3 text-sm text-gray-500">
+                    {expandedRepo === repo.name ? 'Hide Details' : 'View Workflows'}
                   </td>
                 </tr>
-              )}
-            </React.Fragment>
-          ))}
+                {expandedRepo === repo.name && (
+                  <tr>
+                    <td colSpan={4} className="p-0 border-b">
+                      <RepoDetails owner={account.login} repo={repo.name} />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>
